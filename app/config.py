@@ -1,0 +1,27 @@
+# app/config.py
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from functools import lru_cache
+
+
+class Settings(BaseSettings):
+    # --- Database ---
+    DATABASE_URL: str
+
+    # --- ImageKit ---
+    IMAGEKIT_PRIVATE_KEY: str
+    IMAGEKIT_PUBLIC_KEY: str
+    IMAGEKIT_URL_ENDPOINT: str
+
+    # --- JWT ---
+    JWT_SECRET: str  # 🔐 New secure secret for JWTs
+
+    # --- Environment ---
+    ENVIRONMENT: str = "development"  # Add this line
+
+    # Environment file location
+    model_config = SettingsConfigDict(env_file=".env")
+
+
+@lru_cache
+def get_settings():
+    return Settings()
