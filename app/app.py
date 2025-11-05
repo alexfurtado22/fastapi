@@ -1,9 +1,10 @@
-# app/app.py
 from fastapi import FastAPI, Depends, HTTPException, Response, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from contextlib import asynccontextmanager
-from .database import engine, Base
-from .models import User  # noqa: F401
+from .database import engine  # <-- FIXED: Removed unused 'Base' import
+
+# --- 1. ADD Post AND Comment TO THIS IMPORT ---
+from .models import User, Post, Comment  # noqa: F401
 from .auth import (
     fastapi_users,
     get_refresh_token_strategy,
@@ -11,14 +12,18 @@ from .auth import (
     get_user_manager,
 )
 from .schemas import UserRead, UserCreate
-from .config import get_settings
+from .posts import router as posts_router  # <-- IMPORT YOUR NEW ROUTER
+from .config import get_settings  # <-- 2. ADD THIS MISSING IMPORT
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("INFO:     Starting up and creating tables...")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    print("INFO:     Starting up...")
+
+    # ❌ REMOVED: Alembic now handles database table creation and migrations.
+    # async with engine.begin() as conn:
+    #     await conn.run_sync(Base.metadata.create_all)
+
     print("INFO:     Startup complete.")
 
     yield  # The application runs here
@@ -63,7 +68,7 @@ async def login(
         value=refresh_token,
         max_age=604800,  # 7 days
         httponly=True,
-        secure=get_settings().ENVIRONMENT == "production",
+        secure=get_settings().ENVIRONMENT == "production",  # <-- This now works
         samesite="lax",
     )
 
@@ -121,7 +126,7 @@ async def refresh_token(
             value=new_refresh_token,
             max_age=604800,  # 7 days
             httponly=True,
-            secure=get_settings().ENVIRONMENT == "production",
+            secure=get_settings().ENVIRONMENT == "production",  # <-- This now works
             samesite="lax",
         )
 
@@ -152,6 +157,9 @@ app.include_router(
     prefix="/users",
     tags=["users"],
 )
+
+# --- 3. INCLUDE YOUR NEW POSTS ROUTER ---
+app.include_router(posts_router)
 
 
 # --- Example Protected Route ---
