@@ -18,6 +18,15 @@ class Settings(BaseSettings):
     # --- Environment ---
     ENVIRONMENT: str = "development"  # Add this line
 
+    # --- 2. ADD MAIL SETTINGS ---
+    MAIL_USERNAME: str
+    MAIL_PASSWORD: str
+    MAIL_FROM: str
+    MAIL_PORT: int
+    MAIL_SERVER: str
+    MAIL_FROM_NAME: str
+    # --------------------------
+
     # Environment file location
     model_config = SettingsConfigDict(env_file=".env")
 

@@ -1,9 +1,10 @@
 from fastapi import FastAPI, Depends, HTTPException, Response, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from contextlib import asynccontextmanager
-from .database import engine  # <-- FIXED: Removed unused 'Base' import
+from sqladmin import Admin
+from starlette.middleware.sessions import SessionMiddleware
 
-# --- 1. ADD Post AND Comment TO THIS IMPORT ---
+from .database import engine
 from .models import User, Post, Comment  # noqa: F401
 from .auth import (
     fastapi_users,
@@ -12,22 +13,18 @@ from .auth import (
     get_user_manager,
 )
 from .schemas import UserRead, UserCreate
-from .posts import router as posts_router  # <-- IMPORT YOUR NEW ROUTER
-from .config import get_settings  # <-- 2. ADD THIS MISSING IMPORT
+from .config import get_settings
+from .posts import router as posts_router
+from .admin import UserAdmin, PostAdmin, CommentAdmin
+from .auth_backend import AdminAuthBackend  # 👈 NEW IMPORT
 
 
+# --- 1. Lifespan (Handles Startup/Shutdown) ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("INFO:     Starting up...")
-
-    # ❌ REMOVED: Alembic now handles database table creation and migrations.
-    # async with engine.begin() as conn:
-    #     await conn.run_sync(Base.metadata.create_all)
-
     print("INFO:     Startup complete.")
-
-    yield  # The application runs here
-
+    yield
     print("INFO:     Shutting down and disposing engine...")
     await engine.dispose()
     print("INFO:     Shutdown complete.")
@@ -35,10 +32,29 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# --- Auth Routes ---
+# --- 2. Middleware ---
+# REQUIRED for admin authentication
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=get_settings().JWT_SECRET,
+)
+
+# --- 3. SQLAdmin Panel with Authentication Backend ---
+# This is the CORRECT way to secure the entire admin panel
+authentication_backend = AdminAuthBackend(secret_key=get_settings().JWT_SECRET)
+
+admin = Admin(
+    app=app,
+    engine=engine,
+    authentication_backend=authentication_backend,  # 👈 THIS PROTECTS EVERYTHING
+)
+
+admin.add_view(UserAdmin)
+admin.add_view(PostAdmin)
+admin.add_view(CommentAdmin)
 
 
-# Custom login endpoint that returns access token AND sets refresh cookie
+# --- 4. Custom Auth Routes (Login, Refresh, Logout) ---
 @app.post("/auth/login", tags=["auth"])
 async def login(
     response: Response,
@@ -46,44 +62,32 @@ async def login(
     user_manager=Depends(get_user_manager),
 ):
     """
-    Login endpoint that returns access token in body and sets refresh token in cookie.
+    Login endpoint: returns access token in body, sets refresh token in cookie.
     """
-    # Authenticate user
     user = await user_manager.authenticate(credentials)
-
     if user is None or not user.is_active:
         raise HTTPException(status_code=400, detail="LOGIN_BAD_CREDENTIALS")
 
-    # Generate access token
+    # Create Access Token
     access_strategy = get_access_token_strategy()
     access_token = await access_strategy.write_token(user)
 
-    # Generate refresh token
+    # Create Refresh Token
     refresh_strategy = get_refresh_token_strategy()
     refresh_token = await refresh_strategy.write_token(user)
 
-    # Set refresh token in cookie
+    # Set the secure refresh token cookie
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         max_age=604800,  # 7 days
         httponly=True,
-        secure=get_settings().ENVIRONMENT == "production",  # <-- This now works
+        secure=get_settings().ENVIRONMENT == "production",
         samesite="lax",
     )
-
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-# Register
-app.include_router(
-    fastapi_users.get_register_router(UserRead, UserCreate),
-    prefix="/auth",
-    tags=["auth"],
-)
-
-
-# --- Custom Refresh Endpoint ---
 @app.post("/auth/refresh", tags=["auth"])
 async def refresh_token(
     request: Request,
@@ -91,86 +95,73 @@ async def refresh_token(
     user_manager=Depends(get_user_manager),
 ):
     """
-    Uses the refresh token from HttpOnly cookie to generate a new access token.
-    Also rotates the refresh token for security.
+    Uses the refresh token from cookie to generate a new access token.
     """
-    # Get refresh token from cookie
     refresh_token_value = request.cookies.get("refresh_token")
-
     if not refresh_token_value:
         raise HTTPException(
             status_code=401, detail="Refresh token not found. Please login again."
         )
-
     try:
-        # Verify refresh token and get user
         strategy = get_refresh_token_strategy()
         user = await strategy.read_token(refresh_token_value, user_manager)
-
         if user is None or not user.is_active:
             raise HTTPException(
                 status_code=401, detail="Invalid refresh token or inactive user"
             )
 
-        # Generate new access token
         access_strategy = get_access_token_strategy()
         new_access_token = await access_strategy.write_token(user)
 
-        # Generate new refresh token (token rotation)
         refresh_strategy = get_refresh_token_strategy()
         new_refresh_token = await refresh_strategy.write_token(user)
 
-        # Set new refresh token in cookie
         response.set_cookie(
             key="refresh_token",
             value=new_refresh_token,
-            max_age=604800,  # 7 days
+            max_age=604800,
             httponly=True,
-            secure=get_settings().ENVIRONMENT == "production",  # <-- This now works
+            secure=get_settings().ENVIRONMENT == "production",
             samesite="lax",
         )
-
         return {"access_token": new_access_token, "token_type": "bearer"}
-
-    except Exception as e:
-        print(f"Refresh token error: {e}")
+    except Exception:
         raise HTTPException(
             status_code=401,
             detail="Invalid or expired refresh token. Please login again.",
         )
 
 
-# --- Logout Endpoint ---
 @app.post("/auth/logout", tags=["auth"])
 async def logout(response: Response):
     """
     Clears the refresh token cookie.
-    Frontend should also discard the access token from memory.
     """
     response.delete_cookie(key="refresh_token")
     return {"message": "Successfully logged out"}
 
 
-# --- User Routes ---
+# --- 5. Pre-built FastAPI_Users Routes ---
+app.include_router(
+    fastapi_users.get_register_router(UserRead, UserCreate),
+    prefix="/auth",
+    tags=["auth"],
+)
 app.include_router(
     fastapi_users.get_users_router(UserRead, UserCreate),
     prefix="/users",
     tags=["users"],
 )
 
-# --- 3. INCLUDE YOUR NEW POSTS ROUTER ---
+# --- 6. Your "Posts" App ---
 app.include_router(posts_router)
 
 
-# --- Example Protected Route ---
+# --- 7. Example & Debug Routes ---
 @app.get("/protected")
 async def protected_route(
     user: User = Depends(fastapi_users.current_user(active=True)),
 ):
-    """
-    Example protected endpoint that requires a valid access token.
-    In Swagger: Click the 🔒 Authorize button and paste your access_token.
-    """
     return {
         "message": "This is a protected route",
         "user_id": str(user.id),
@@ -178,20 +169,11 @@ async def protected_route(
     }
 
 
-# --- Debug endpoint to see your cookies ---
 @app.get("/debug/cookies")
 async def debug_cookies(request: Request):
-    """
-    Debug endpoint to see what cookies are being sent.
-    Useful for testing in Swagger.
-    """
-    return {
-        "cookies": dict(request.cookies),
-        "has_refresh_token": "refresh_token" in request.cookies,
-    }
+    return {"cookies": dict(request.cookies)}
 
 
-# --- Public Route ---
 @app.get("/")
 def read_root():
     return {"status": "ok", "message": "Welcome to the API"}
