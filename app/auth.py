@@ -66,3 +66,7 @@ fastapi_users = FastAPIUsers[User, uuid.UUID](
 
 # --- 6. Current User Dependency ---
 current_active_user = fastapi_users.current_user(active=True)
+
+# --- 7. ADD THIS NEW DEPENDENCY ---
+# Dependency for a user who is logged in AND verified
+current_active_verified_user = fastapi_users.current_user(active=True, verified=True)
