@@ -1,3 +1,6 @@
+# --- 👇 1. ADD THIS IMPORT ---
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -14,19 +17,20 @@ from .schemas import (
     CommentCreate,
     CommentReadWithUser,
 )
+from .auth import current_active_verified_user
 
-# --- 1. IMPORT THE NEW DEPENDENCY ---
-from .auth import current_active_verified_user  # Changed from current_active_user
+# --- 👇 2. ADD THIS IMPORT ---
+from .utils import delete_file_from_imagekit
+
 
 # Create a new router
 router = APIRouter(prefix="/posts", tags=["Posts"])
 
 
-# === 1. Create Post ===
+# === 1. Create Post (NO CHANGES) ===
 @router.post("/", response_model=PostRead, status_code=status.HTTP_201_CREATED)
 async def create_post(
     post: PostCreate,
-    # --- 2. USE THE NEW DEPENDENCY ---
     user: User = Depends(current_active_verified_user),
     session: AsyncSession = Depends(get_db_session),
 ):
@@ -40,7 +44,7 @@ async def create_post(
     return new_post
 
 
-# === 2. Get All Posts (Public) ===
+# === 2. Get All Posts (NO CHANGES) ===
 @router.get("/", response_model=List[PostRead])
 async def get_all_posts(
     session: AsyncSession = Depends(get_db_session), skip: int = 0, limit: int = 10
@@ -54,7 +58,7 @@ async def get_all_posts(
     return posts
 
 
-# === 3. Get Single Post (Public) ===
+# === 3. Get Single Post (NO CHANGES) ===
 @router.get("/{post_id}", response_model=PostReadWithDetails)
 async def get_post_by_id(post_id: int, session: AsyncSession = Depends(get_db_session)):
     """
@@ -78,12 +82,11 @@ async def get_post_by_id(post_id: int, session: AsyncSession = Depends(get_db_se
     return post
 
 
-# === 4. Update Post (Owner Only & Verified) ===
+# === 4. Update Post (NO CHANGES) ===
 @router.patch("/{post_id}", response_model=PostRead)
 async def update_post(
     post_id: int,
     post_update: PostUpdate,
-    # --- 3. USE THE NEW DEPENDENCY ---
     user: User = Depends(current_active_verified_user),
     session: AsyncSession = Depends(get_db_session),
 ):
@@ -105,20 +108,36 @@ async def update_post(
         )
 
     update_data = post_update.model_dump(exclude_unset=True)
+
+    # Store old URLs *before* updating the post object,
+    # so we can delete them from ImageKit after the update.
+    old_image_url = post.image_url if "image_url" in update_data else None
+    old_video_url = post.video_url if "video_url" in update_data else None
+
     for key, value in update_data.items():
         setattr(post, key, value)
 
     session.add(post)
     await session.commit()
     await session.refresh(post)
+
+    # Now that the DB update is successful, delete the old files.
+    delete_tasks = []
+    if old_image_url and old_image_url != post.image_url:
+        delete_tasks.append(delete_file_from_imagekit(old_image_url))
+    if old_video_url and old_video_url != post.video_url:
+        delete_tasks.append(delete_file_from_imagekit(old_video_url))
+
+    if delete_tasks:
+        await asyncio.gather(*delete_tasks)
+
     return post
 
 
-# === 5. Delete Post (Owner Only & Verified) ===
+# === 5. Delete Post (NO CHANGES) ===
 @router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_post(
     post_id: int,
-    # --- 4. USE THE NEW DEPENDENCY ---
     user: User = Depends(current_active_verified_user),
     session: AsyncSession = Depends(get_db_session),
 ):
@@ -139,27 +158,76 @@ async def delete_post(
             detail="Not authorized to delete this post",
         )
 
+    # Store the URLs before we delete the post from the DB
+    image_url_to_delete = post.image_url
+    video_url_to_delete = post.video_url
+
     await session.delete(post)
     await session.commit()
+
+    # Now that the post is deleted from the DB, delete files from ImageKit
+    delete_tasks = []
+    if image_url_to_delete:
+        delete_tasks.append(delete_file_from_imagekit(image_url_to_delete))
+    if video_url_to_delete:
+        delete_tasks.append(delete_file_from_imagekit(video_url_to_delete))
+
+    if delete_tasks:
+        await asyncio.gather(*delete_tasks)
+
     return None
 
 
-# === 6. Create Comment (Verified Users) ===
+# === 👇 6. GET ALL COMMENTS FOR A POST (NEW ENDPOINT) ===
+@router.get(
+    "/{post_id}/comments/",
+    response_model=List[CommentReadWithUser],
+    tags=["Posts", "Comments"],  # Add "Comments" tag for organization
+)
+async def get_comments_for_post(
+    post_id: int, session: AsyncSession = Depends(get_db_session)
+):
+    """
+    Get all comments for a specific post. Public endpoint.
+    """
+    # First, check if the post exists to return a clear 404
+    post_result = await session.execute(select(Post).where(Post.id == post_id))
+    if post_result.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
+        )
+
+    # Now, get all comments for that post, eagerly loading the owner
+    query = (
+        select(Comment)
+        .where(Comment.post_id == post_id)
+        .options(selectinload(Comment.owner))
+        .order_by(Comment.created_at.asc())  # Show oldest comments first
+    )
+
+    result = await session.execute(query)
+    comments = result.scalars().all()
+
+    return comments
+
+
+# === 7. Create Comment (Verified Users) ===
 @router.post(
     "/{post_id}/comments/",
     response_model=CommentReadWithUser,
     status_code=status.HTTP_201_CREATED,
+    tags=["Posts", "Comments"],  # Added tag for organization
 )
 async def create_comment_for_post(
     post_id: int,
     comment: CommentCreate,
-    # --- 5. USE THE NEW DEPENDENCY ---
     user: User = Depends(current_active_verified_user),
     session: AsyncSession = Depends(get_db_session),
 ):
     """
     Create a new comment. The user must be authenticated AND VERIFIED.
     """
+    # Check if post exists (you already had this, which is great)
     post_result = await session.execute(select(Post).where(Post.id == post_id))
     if post_result.scalar_one_or_none() is None:
         raise HTTPException(

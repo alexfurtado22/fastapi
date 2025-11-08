@@ -18,6 +18,8 @@ from .auth import (
 from .schemas import UserRead, UserCreate
 from .config import get_settings
 from .posts import router as posts_router
+from .comments import router as comments_router
+from .uploads import router as uploads_router
 from .admin import UserAdmin, PostAdmin, CommentAdmin
 from .auth_backend import AdminAuthBackend
 from .dependencies import get_user_db
@@ -328,6 +330,8 @@ app.include_router(
 
 # --- 6. Your "Posts" App ---
 app.include_router(posts_router)
+app.include_router(comments_router)  # 👈 2. ADD THIS
+app.include_router(uploads_router)
 
 
 # --- 7. Example & Debug Routes ---

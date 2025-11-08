@@ -2,6 +2,7 @@ from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from pydantic import EmailStr
 from .config import get_settings
 from .models import User
+from .logging_config import logger
 
 
 # Get all our mail settings from the config
@@ -59,8 +60,9 @@ async def send_verification_email(email_to: EmailStr, user: User, token: str):
     # Initialize FastMail and send
     fm = FastMail(conf)
     try:
+        logger.info(f"📧 Sending verification email to {email_to} ...")
         await fm.send_message(message)
-        print(f"Verification email sent to {email_to}")
+        logger.success(f"✅ Verification email successfully sent to {email_to}")
     except Exception as e:
-        print(f"Error sending email to {email_to}: {e}")
+        logger.error(f"❌ Error sending verification email to {email_to}: {e}")
         pass

@@ -51,6 +51,15 @@ class CommentCreate(CommentBase):
     pass
 
 
+# --- 👇 ADD THIS NEW SCHEMA ---
+class CommentUpdate(BaseModel):
+    """
+    Schema for updating a comment. Content is optional.
+    """
+
+    content: str | None = None
+
+
 class CommentRead(CommentBase):
     """Schema for reading a comment from the API."""
 
