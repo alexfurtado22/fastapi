@@ -1,32 +1,33 @@
-from fastapi import FastAPI, Depends, HTTPException, Response, Request
-from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.responses import HTMLResponse
+import time
 from contextlib import asynccontextmanager
-from sqladmin import Admin
-from starlette.middleware.sessions import SessionMiddleware
-import jwt
+from contextvars import ContextVar
+from typing import Callable
 from uuid import UUID
 
-from .database import engine
-from .models import User, Post, Comment  # noqa: F401
+import jwt
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi.responses import HTMLResponse
+from fastapi.security import OAuth2PasswordRequestForm
+from sqladmin import Admin
+from starlette.middleware.sessions import SessionMiddleware
+
+from .admin import CommentAdmin, PostAdmin, UserAdmin
 from .auth import (
     fastapi_users,
-    get_refresh_token_strategy,
     get_access_token_strategy,
+    get_refresh_token_strategy,
     get_user_manager,
 )
-from .schemas import UserRead, UserCreate
-from .config import get_settings
-from .posts import router as posts_router
-from .comments import router as comments_router
-from .uploads import router as uploads_router
-from .admin import UserAdmin, PostAdmin, CommentAdmin
 from .auth_backend import AdminAuthBackend
+from .comments import router as comments_router
+from .config import get_settings
+from .database import engine
 from .dependencies import get_user_db
 from .logging_config import logger
-from typing import Callable
-from contextvars import ContextVar
-import time
+from .models import Comment, Post, User  # noqa: F401
+from .posts import router as posts_router
+from .schemas import UserCreate, UserRead, UserUpdate
+from .uploads import router as uploads_router
 
 
 # --- 1. Lifespan (Handles Startup/Shutdown) ---
@@ -311,7 +312,7 @@ app.include_router(
     tags=["auth"],
 )
 app.include_router(
-    fastapi_users.get_users_router(UserRead, UserCreate),
+    fastapi_users.get_users_router(UserRead, UserUpdate),  # 👈 2. USE UserUpdate HERE
     prefix="/users",
     tags=["users"],
 )
@@ -328,9 +329,9 @@ app.include_router(
     tags=["auth"],
 )
 
-# --- 6. Your "Posts" App ---
+# --- 6. Your "Posts", "Comments", and "Uploads" Apps ---
 app.include_router(posts_router)
-app.include_router(comments_router)  # 👈 2. ADD THIS
+app.include_router(comments_router)
 app.include_router(uploads_router)
 
 

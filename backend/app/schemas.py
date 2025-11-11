@@ -1,8 +1,9 @@
 import uuid
-from pydantic import EmailStr, BaseModel
-from fastapi_users.schemas import BaseUser, BaseUserCreate
 from datetime import datetime
 from typing import List
+
+from fastapi_users.schemas import BaseUser, BaseUserCreate, BaseUserUpdate
+from pydantic import BaseModel, EmailStr
 
 # ====================================================================
 # User Schemas
@@ -17,6 +18,16 @@ class UserCreate(BaseUserCreate):
 
     email: EmailStr
     password: str
+    full_name: str | None = None
+
+
+# --- 👇 ADD THIS CLASS ---
+class UserUpdate(BaseUserUpdate):
+    """
+    Schema for updating a user. Inherits optional email and password
+    from BaseUserUpdate and adds our custom full_name.
+    """
+
     full_name: str | None = None
 
 
