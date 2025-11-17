@@ -1,3 +1,4 @@
+import os  # 👈 1. Import os
 import time
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
@@ -6,8 +7,10 @@ from uuid import UUID
 
 import jwt
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
 from sqladmin import Admin
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -45,8 +48,33 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+
 # ContextVar for per-request logging context
 request_logger: ContextVar = ContextVar("request_logger", default=logger)
+
+# --- 👇 CREATE AND MOUNT STATIC FOLDER ---
+STATIC_IMAGE_DIR = "app/static/images"
+STATIC_VIDEO_DIR = "app/static/videos"  # 👈 1. ADD THIS LINE
+os.makedirs(STATIC_IMAGE_DIR, exist_ok=True)
+os.makedirs(STATIC_VIDEO_DIR, exist_ok=True)  # 👈 2. ADD THIS LINE
+
+# This tells FastAPI: "Any request to /static/...
+# should be served from the 'app/static' folder"
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+# --- 👇 2. ADD THIS MIDDLEWARE BLOCK ---
+# Place this right after `app = FastAPI()`
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://172.28.250.214:3000",  # Your Next.js frontend
+        # Add your production frontend URL here later
+    ],
+    allow_credentials=True,  # 👈 This is the crucial part
+    allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allow all headers
+)
 
 
 # --- 2. Request Logging Middleware ---

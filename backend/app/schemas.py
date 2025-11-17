@@ -146,3 +146,8 @@ class PostReadWithDetails(PostRead):
 
     owner: UserRead
     comments: List[CommentReadWithUser] = []
+
+
+class PaginatedPostResponse(BaseModel):
+    total: int
+    posts: List[PostRead]
