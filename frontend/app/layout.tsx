@@ -1,7 +1,7 @@
 // app/layout.tsx
-import { Footer } from "@/components/layout/footer";
-import { Header } from "@/components/layout/header"; // 👈 1. Import Header;
+import LayoutClient from "@/components/layout/layout-client";
 import { AuthProvider } from "@/components/providers/auth-provider";
+import { ThemeProvider } from "@/components/theme/theme-provider";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -19,15 +19,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning className="dark">
       <body className={inter.className}>
-        {/* AuthProvider wraps the app so Header and all pages can read auth state */}
-        <AuthProvider>
-          {/* 👈 2. Add the Header here */}
-          <Header />
-          <main>{children}</main>
-          <Footer />
-        </AuthProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {/* AuthProvider wraps the app so Header and all pages can read auth state */}
+          <AuthProvider>
+            {/* 👈 2. Add the Header here */}
+            {/* Client wrapper will decide to show Header/Footer */}
+            <LayoutClient>{children}</LayoutClient>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

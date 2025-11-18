@@ -79,9 +79,9 @@ export default function CreatePostPage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-background">
+      <div className="col-span-2">
         {/* Header */}
-        <header className="sticky top-0 z-10 border-b bg-card">
+        <header className="sticky top-0 z-10 border-b ">
           <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
             <h1 className="text-2xl font-bold">Create Post</h1>
             <Link href="/dashboard/posts">

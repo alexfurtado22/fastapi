@@ -6,6 +6,7 @@ import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ModeToggle } from "../theme/theme-toggle";
 
 export function Header() {
   const router = useRouter();
@@ -19,7 +20,7 @@ export function Header() {
   };
 
   return (
-    <header className="w-full  border-b bg-background h-16">
+    <header className="col-span-2 py-4">
       <div className="h-full flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="text-xl font-bold">
@@ -30,6 +31,10 @@ export function Header() {
         <nav className="hidden md:flex items-center gap-4">
           {!user ? (
             <>
+              {/* Logo */}
+              <Link href="/" className="text-xl font-bold">
+                MyApp
+              </Link>
               <Link href="/auth/login">
                 <Button variant="outline">Login</Button>
               </Link>
@@ -49,16 +54,23 @@ export function Header() {
               </Button>
             </>
           )}
+
+          {/* Theme Toggle (desktop) */}
+          <ModeToggle />
         </nav>
 
         {/* Mobile Button */}
-        <button
-          className="md:hidden"
-          onClick={() => setOpen(!open)}
-          aria-label="Toggle Menu"
-        >
-          {open ? <X size={26} /> : <Menu size={26} />}
-        </button>
+        <div className="flex items-center gap-2 md:hidden">
+          <ModeToggle />
+
+          <button
+            className="md:hidden"
+            onClick={() => setOpen(!open)}
+            aria-label="Toggle Menu"
+          >
+            {open ? <X size={26} /> : <Menu size={26} />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Dropdown */}

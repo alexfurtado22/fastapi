@@ -8,7 +8,7 @@ export function Footer() {
   const { user, isAuthenticated } = useAuthStore();
 
   return (
-    <footer className="bg-background py-6 mt-12">
+    <footer className="bg-background py-6 mt-12 col-span-2">
       <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-4 w-full overflow-x-hidden">
         {/* Left side: copyright */}
         <div className="text-sm">
