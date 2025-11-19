@@ -17,6 +17,13 @@ const nextConfig: NextConfig = {
         port: "8000",
         pathname: "/static/videos/**", // ✅ Videos (separate object)
       },
+
+      // 👇 ADD THIS NEW BLOCK FOR R2
+      {
+        protocol: "https",
+        hostname: "pub-472ee4560a3c493a97125023eb526232.r2.dev", // 👈 REPLACE with your actual R2 hostname
+        pathname: "/**",
+      },
     ],
   },
 };

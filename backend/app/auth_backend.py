@@ -1,7 +1,9 @@
+# app/auth_backend.py
 from sqladmin.authentication import AuthenticationBackend
-from starlette.requests import Request
-from .database import async_session_maker
 from sqlalchemy import select
+from starlette.requests import Request
+
+from .database import async_session_maker
 from .models import User
 
 

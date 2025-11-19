@@ -1,8 +1,10 @@
 # app/logging_config.py
-from loguru import logger
+import logging
 import sys
 from pathlib import Path
-import logging
+
+from loguru import logger
+
 from .config import get_settings
 
 # Ensure logs folder exists
@@ -137,3 +139,9 @@ logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 logging.getLogger("python_multipart").setLevel(logging.INFO)
 logging.getLogger("httpx").setLevel(logging.INFO)
 logging.getLogger("httpcore").setLevel(logging.INFO)
+
+# Silence noisy AWS/boto3 debug logs
+logging.getLogger("botocore").setLevel(logging.INFO)
+logging.getLogger("boto3").setLevel(logging.INFO)
+logging.getLogger("s3transfer").setLevel(logging.INFO)
+logging.getLogger("urllib3").setLevel(logging.INFO)

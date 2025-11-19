@@ -1,5 +1,7 @@
+# app/admin.py
 from sqladmin import ModelView
-from .models import User, Post, Comment
+
+from .models import Comment, Post, User
 
 
 class UserAdmin(ModelView, model=User):

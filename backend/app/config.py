@@ -1,34 +1,36 @@
 # app/config.py
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     # --- Database ---
     DATABASE_URL: str
 
-    # --- ImageKit ---
-    IMAGEKIT_PRIVATE_KEY: str
-    IMAGEKIT_PUBLIC_KEY: str
-    IMAGEKIT_URL_ENDPOINT: str
+    # --- Cloudflare R2 (Replaces ImageKit) ---
+    R2_ACCOUNT_ID: str
+    R2_ACCESS_KEY_ID: str
+    R2_SECRET_ACCESS_KEY: str
+    R2_BUCKET_NAME: str
+    R2_PUBLIC_URL: str
 
     # --- JWT ---
-    JWT_SECRET: str  # 🔐 New secure secret for JWTs
+    JWT_SECRET: str
 
     # --- Environment ---
-    ENVIRONMENT: str = "development"  # Add this line
+    ENVIRONMENT: str = "development"
 
-    # --- 2. ADD MAIL SETTINGS ---
+    # --- Mail Settings ---
     MAIL_USERNAME: str
     MAIL_PASSWORD: str
     MAIL_FROM: str
     MAIL_PORT: int
     MAIL_SERVER: str
     MAIL_FROM_NAME: str
-    # --------------------------
 
-    # Environment file location
-    model_config = SettingsConfigDict(env_file=".env")
+    # This allows extra fields in .env (like comments) without crashing
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
 @lru_cache
