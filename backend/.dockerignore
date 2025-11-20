@@ -1,0 +1,60 @@
+# ==============================
+# 1. VERSION CONTROL (Crucial)
+# ==============================
+# Prevents copying the entire history of your project (can be massive)
+.git
+.gitignore
+
+# ==============================
+# 2. SECRETS (Security)
+# ==============================
+# NEVER copy env files into the image. 
+# Secrets should be injected by the platform (Render/AWS/Docker Compose) at runtime.
+.env
+.env.prod
+.env.test
+.env.local
+.env.docker
+
+# ==============================
+# 3. LOCAL PYTHON JUNK
+# ==============================
+# Do not copy compiled python files or cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+.installed.cfg
+.pytest_cache
+.mypy_cache
+.coverage
+htmlcov
+
+# ==============================
+# 4. VIRTUAL ENVIRONMENTS
+# ==============================
+# We want Docker to install fresh dependencies using uv.
+# We do NOT want to copy your local Mac/Linux/Windows venv.
+.venv
+venv
+env
+ENV
+
+# ==============================
+# 5. LOCAL MEDIA (Cloudflare R2)
+# ==============================
+# Since we use R2, we don't want to copy any local test images 
+# you uploaded to your computer. Keep the folder structure, ignore the files.
+app/static/*
+!app/static/.gitkeep
+
+# ==============================
+# 6. EDITOR & OS FILES
+# ==============================
+.vscode
+.idea
+*.swp
+.DS_Store
+Thumbs.db

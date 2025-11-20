@@ -9,23 +9,24 @@ const nextConfig: NextConfig = {
         protocol: "http",
         hostname: "localhost",
         port: "8000",
-        pathname: "/static/images/**", // ✅ Images
+        pathname: "/static/images/**",
       },
       {
         protocol: "http",
         hostname: "localhost",
         port: "8000",
-        pathname: "/static/videos/**", // ✅ Videos (separate object)
+        pathname: "/static/videos/**",
       },
-
-      // 👇 ADD THIS NEW BLOCK FOR R2
       {
         protocol: "https",
-        hostname: "pub-472ee4560a3c493a97125023eb526232.r2.dev", // 👈 REPLACE with your actual R2 hostname
+        hostname: "pub-472ee4560a3c493a97125023eb526232.r2.dev",
         pathname: "/**",
       },
     ],
   },
+
+  // 👇 CORRECT SETUP: Top-level, NO 'http://'
+  allowedDevOrigins: ["172.28.250.214:3000"],
 };
 
 export default nextConfig;

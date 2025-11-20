@@ -8,6 +8,7 @@ backend/.venv/
 backend/.env
 backend/logs/
 backend/db.sqlite3*
+backend/.env.docker
 
 # Python cache & compiled files (using ** to find in all subdirectories)
 **__pycache__/

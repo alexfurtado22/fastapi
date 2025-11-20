@@ -1,0 +1,62 @@
+# Dockerfile.prod
+
+# ==================================
+# STAGE 1: Builder (Install Dependencies)
+# ==================================
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
+
+WORKDIR /app
+
+# Set env vars for uv
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies into .venv
+# --frozen: strictly ensures lockfile sync
+# --no-dev: don't install development tools (ruff, etc)
+RUN uv sync --frozen --no-dev
+
+# ==================================
+# STAGE 2: Runtime (The actual container)
+# ==================================
+FROM python:3.13-slim-bookworm
+
+WORKDIR /app
+
+# Install minimal runtime libs (libpq5 is needed for Postgres)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the virtual environment from the builder stage
+COPY --from=builder /app/.venv /app/.venv
+
+# Copy application code
+COPY . .
+
+# Set environment variables
+# PATH update is crucial so we can run 'uvicorn' and 'alembic' directly
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/app/.venv/bin:$PATH"
+
+# Create a non-root user for security (Best Practice)
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+
+# Switch to the non-root user
+USER appuser
+
+# Expose the port
+EXPOSE 8000
+
+# Health check (Checks if the app is responding)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/')" || exit 1
+
+# Run Migrations + Start Server
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.app:app --host 0.0.0.0 --port 8000 --workers 4"]
