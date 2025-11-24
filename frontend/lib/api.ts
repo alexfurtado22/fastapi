@@ -103,6 +103,11 @@ export interface PaginatedPosts {
   posts: Post[];
 }
 
+// 👇 Your new type for better safety
+export interface ToggleLikeResponse {
+  status: "liked" | "unliked";
+}
+
 export const postsAPI = {
   async getAll(
     search: string = "",
@@ -153,6 +158,11 @@ export const postsAPI = {
 
   async delete(id: number) {
     await api.delete(`/posts/${id}`);
+  },
+  // 👇 UPDATED: Added return type annotation
+  async toggleLike(postId: number): Promise<ToggleLikeResponse> {
+    const response = await api.post(`/posts/${postId}/like`);
+    return response.data;
   },
 };
 

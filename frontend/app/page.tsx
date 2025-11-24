@@ -2,6 +2,9 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
+export const metadata = {
+  title: "Home | Social Media App",
+};
 export default function Home() {
   return (
     // --- 1. Use theme-aware background colors ---

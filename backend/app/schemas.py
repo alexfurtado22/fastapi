@@ -1,153 +1,104 @@
-import uuid
+from pydantic import BaseModel, EmailStr, ConfigDict, Field
 from datetime import datetime
-from typing import List
+from typing import Optional, List
+from uuid import UUID
 
-from fastapi_users.schemas import BaseUser, BaseUserCreate, BaseUserUpdate
-from pydantic import BaseModel, EmailStr
 
 # ====================================================================
-# User Schemas
+# 👤 USER SCHEMAS
 # ====================================================================
+class UserRead(BaseModel):
+    id: UUID
+    email: EmailStr
+    full_name: Optional[str] = None
+    is_active: bool
+    is_verified: bool
+    is_superuser: bool
+
+    model_config = ConfigDict(from_attributes=True)
 
 
-class UserCreate(BaseUserCreate):
-    """
-    Schema for creating a new user.
-    Inherits email and password fields from BaseUserCreate.
-    """
-
+class UserCreate(BaseModel):
     email: EmailStr
     password: str
-    full_name: str | None = None
+    full_name: Optional[str] = None
 
 
-# --- 👇 ADD THIS CLASS ---
-class UserUpdate(BaseUserUpdate):
-    """
-    Schema for updating a user. Inherits optional email and password
-    from BaseUserUpdate and adds our custom full_name.
-    """
-
-    full_name: str | None = None
-
-
-class UserRead(BaseUser):
-    """
-    Schema for reading user data (what's returned from the API).
-    Inherits fields from BaseUser.
-    """
-
-    id: uuid.UUID
-    email: EmailStr
-    full_name: str | None = None
-
-    class Config:
-        from_attributes = True  # Tell Pydantic to read from ORM models
+class UserUpdate(BaseModel):
+    password: Optional[str] = None
+    full_name: Optional[str] = None
 
 
 # ====================================================================
-# Comment Schemas
+# 💬 COMMENT SCHEMAS
 # ====================================================================
-
-
-class CommentBase(BaseModel):
-    """Base schema for a comment, just the content."""
-
+class CommentCreate(BaseModel):
     content: str
 
 
-class CommentCreate(CommentBase):
-    """Schema for creating a new comment."""
-
-    pass
-
-
-# --- 👇 ADD THIS NEW SCHEMA ---
 class CommentUpdate(BaseModel):
-    """
-    Schema for updating a comment. Content is optional.
-    """
-
-    content: str | None = None
+    content: Optional[str] = None
 
 
-class CommentRead(CommentBase):
-    """Schema for reading a comment from the API."""
-
+class CommentRead(BaseModel):
     id: int
-    owner_id: uuid.UUID
+    content: str
+    owner_id: UUID
     post_id: int
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CommentReadWithUser(CommentRead):
-    """
-    Schema for reading a comment, including the user who wrote it.
-    This "nests" the UserRead schema inside.
-    """
-
     owner: UserRead
 
 
 # ====================================================================
-# Post Schemas
+# 📝 POST SCHEMAS
 # ====================================================================
-
-
 class PostBase(BaseModel):
-    """Base schema for a post, with common fields."""
-
     title: str
-    content: str | None = None
-    image_url: str | None = None
-    video_url: str | None = None
+    content: Optional[str] = None
+    image_url: Optional[str] = None
+    video_url: Optional[str] = None
 
 
 class PostCreate(PostBase):
-    """Schema for creating a new post."""
-
     pass
 
 
-# --- ADD THIS NEW SCHEMA ---
 class PostUpdate(BaseModel):
-    """
-    Schema for updating a post. All fields are optional.
-    """
-
-    title: str | None = None
-    content: str | None = None
-    image_url: str | None = None
-    video_url: str | None = None
+    title: Optional[str] = None
+    content: Optional[str] = None
+    image_url: Optional[str] = None
+    video_url: Optional[str] = None
 
 
+# The main Schema used in lists (Feed)
 class PostRead(PostBase):
-    """Schema for reading a post from the API (without details)."""
-
     id: int
-    owner_id: uuid.UUID
+    owner_id: UUID
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    # ❤️ New Fields for Likes
+    likes_count: int = 0
+    user_has_liked: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
 
 
+# The Detailed Schema used for Single Post View (includes comments & owner)
 class PostReadWithDetails(PostRead):
-    """
-    Schema for reading a single post with all details:
-    - The post owner's info (a nested UserRead schema)
-    - A list of all comments (a nested list of CommentReadWithUser schemas)
-    """
-
     owner: UserRead
-    comments: List[CommentReadWithUser] = []
+    comments: List[CommentReadWithUser] = Field(default_factory=list)
 
 
+# ====================================================================
+# 📄 PAGINATION SCHEMA
+# ====================================================================
 class PaginatedPostResponse(BaseModel):
     total: int
     posts: List[PostRead]

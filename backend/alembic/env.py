@@ -18,7 +18,7 @@ sys.path.append(os.path.join(current_path, ".."))
 # Local application imports
 from app.config import get_settings  # noqa: E402
 from app.database import Base  # noqa: E402, F401
-from app.models import Comment, Post, User  # noqa: E402, F401
+from app.models import Comment, Like, Post, User  # noqa: E402, F401
 
 # Alembic Config object
 config = context.config

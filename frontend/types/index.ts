@@ -18,6 +18,8 @@ export interface Post {
   owner_id: string;
   created_at: string;
   updated_at: string;
+  likes_count: number;
+  user_has_liked: boolean;
 }
 
 export interface PostWithDetails extends Post {
